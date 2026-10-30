@@ -6,3 +6,4 @@ wheelhouse
 *.tar
 *.tar.gz
 facilitator/kit
+docker/build.log

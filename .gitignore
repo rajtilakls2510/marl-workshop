@@ -9,3 +9,5 @@ facilitator/kit/
 runs/
 lightning_logs/
 .DS_Store
+videos/
+docker/build.log

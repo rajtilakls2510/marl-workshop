@@ -13,13 +13,18 @@
 FROM python:3.10-slim AS builder
 ARG TORCH_FLAVOR=cu129
 ARG TARGETARCH
-ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 UV_NO_CACHE=1 UV_PYTHON_DOWNLOADS=never
+# Generous network settings: big CUDA wheels over slow or flaky Wi-Fi.
+ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 UV_PYTHON_DOWNLOADS=never \
+    UV_HTTP_TIMEOUT=600 UV_HTTP_RETRIES=10
 
 RUN pip install --no-cache-dir uv
 
 # The venv lives at the same absolute path in both stages so its shebangs stay valid.
 COPY requirements.txt /tmp/requirements.txt
-RUN set -eux; \
+# The uv download cache is a BuildKit cache mount: it persists across builds (not in the image),
+# so changing requirements.txt only downloads the changed packages, not all of torch again.
+RUN --mount=type=cache,target=/root/.cache/uv \
+    set -eux; \
     FLAVOR="${TORCH_FLAVOR}"; \
     if [ "${TARGETARCH:-amd64}" != "amd64" ]; then FLAVOR=cpu; fi; \
     uv venv /opt/venv; \

@@ -34,5 +34,6 @@ Then open `notebooks/00_check_setup.ipynb` and run it. All cells green = ready. 
 | `checkpoints/` | Trained agents for every scenario (no live training needed) |
 | `docker/`, `scripts/` | One-command environment setup |
 | `verify_env.py` | Environment self-check: `python verify_env.py` |
+| `scripts/render_mpe.py` | Make a video of an MPE task: `python scripts/render_mpe.py --env tag --out videos/tag.mp4` |
 
 Environments used: Multi-Agent Particle Environment (via `mpe2`/PettingZoo), SMAClite, VMAS.
