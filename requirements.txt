@@ -1,0 +1,29 @@
+# MARL workshop environment -- Python 3.10.
+#
+# Install with uv (picks the right PyTorch build for your machine):
+#     uv pip install --torch-backend auto -r requirements.txt     # NVIDIA GPU -> CUDA wheel, else CPU
+#     uv pip install --torch-backend cpu  -r requirements.txt     # force the small CPU-only wheel
+# Or just run scripts/setup_uv.sh (Linux/macOS) / scripts\setup_uv.bat (Windows).
+#
+# Direct dependencies only; everything else is resolved by uv/pip.
+
+torch==2.13.0
+numpy==1.26.4
+
+# --- environments -----------------------------------------------------------
+gymnasium==1.4.0
+pettingzoo==1.27.0
+mpe2==1.1.1                  # Multi-Agent Particle Envs (moved out of PettingZoo)
+vmas==1.5.2                  # Vectorized Multi-Agent Simulator
+# SMAClite (StarCraft II micromanagement without the game). Pinned commit, installed
+# from the GitHub zip so that `git` is NOT required on the attendee's machine.
+smaclite @ https://github.com/uoe-agents/smaclite/archive/0d6abbea1334011984ae4704a0ef7a33c36057d6.zip
+pygame==2.6.1
+
+# --- tooling ----------------------------------------------------------------
+matplotlib==3.10.9
+imageio==2.38.0
+tqdm==4.70.1
+tensorboard==2.21.0
+jupyterlab==4.6.5
+ipywidgets==8.1.9

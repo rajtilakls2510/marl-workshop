@@ -1,0 +1,11 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+wheelhouse*/
+facilitator/kit/
+*.tar
+*.tar.gz
+runs/
+lightning_logs/
+.DS_Store
