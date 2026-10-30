@@ -21,6 +21,14 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "ERROR: Docker is not running. Start Docker Desktop, wait for the whale icon to settle, and retry." -ForegroundColor Red; exit 1
 }
 
+# Already running (e.g. from an earlier window)? Don't start a second copy.
+if (docker ps -q -f "name=^marl-workshop$") {
+    Write-Host "==> The workshop container is already running: open http://localhost:${Port}/lab?token=marl"
+    Write-Host "    (to restart it: docker stop marl-workshop, then run this script again)"
+    exit 0
+}
+docker rm marl-workshop *> $null
+
 $Image = $env:IMAGE
 if (-not $Image) {
     docker image inspect "${LocalImage}:latest" *> $null

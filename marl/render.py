@@ -94,12 +94,12 @@ def _random_policy(env, seed):
     return lambda agent, obs: env.action_space(agent).sample()
 
 
-def episode(env, policy=None, seed=0, annotate=True, scale=1.0):
+def episode(env, policy=None, seed=0, annotate=True, scale=1.0, title=None):
     """Generator over one episode: yields (frame, returns_so_far) after reset and after each step."""
     policy = policy or _random_policy(env, seed)
     obs, _ = env.reset(seed=seed)
     returns = {a: 0.0 for a in env.agents}
-    title = MPE_ENVS.get(getattr(env, "short_name", ""), ("", ""))[1]
+    title = title or MPE_ENVS.get(getattr(env, "short_name", ""), ("", ""))[1]
     t = 0
 
     def frame():
@@ -119,12 +119,12 @@ def episode(env, policy=None, seed=0, annotate=True, scale=1.0):
         yield frame(), dict(returns)
 
 
-def rollout(env, policy=None, seed=0, episodes=1, annotate=True, scale=1.0):
+def rollout(env, policy=None, seed=0, episodes=1, annotate=True, scale=1.0, title=None):
     """Run episode(s) and return (frames, returns_per_episode)."""
     frames, all_returns = [], []
     for ep in range(episodes):
         returns = None
-        for f, returns in episode(env, policy, seed + ep, annotate, scale):
+        for f, returns in episode(env, policy, seed + ep, annotate, scale, title):
             frames.append(f)
         all_returns.append(returns)
     return frames, all_returns

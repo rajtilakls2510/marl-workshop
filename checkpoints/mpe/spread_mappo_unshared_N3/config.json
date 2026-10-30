@@ -1,0 +1,29 @@
+{
+  "name": "spread_mappo_unshared_N3",
+  "env": "spread",
+  "env_kwargs": {
+    "N": 3
+  },
+  "algo": "ppo",
+  "label": "MAPPO N=3 (unshared)",
+  "steps": 3000000,
+  "seed": 0,
+  "critic": "central",
+  "share": false,
+  "actor_id": false,
+  "time_feature": true,
+  "num_envs": 64,
+  "lr": 0.0005,
+  "gamma": 0.99,
+  "gae_lambda": 0.95,
+  "clip": 0.2,
+  "epochs": 10,
+  "minibatches": 2,
+  "ent_coef": 0.01,
+  "vf_coef": 1.0,
+  "max_grad_norm": 10.0,
+  "hidden": [
+    64,
+    64
+  ]
+}

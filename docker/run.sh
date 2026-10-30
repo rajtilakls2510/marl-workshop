@@ -28,6 +28,14 @@ if ! docker info >/dev/null 2>&1; then
   echo "       Start Docker Desktop / the docker service; on Linux see docs/TROUBLESHOOTING.md." >&2; exit 1
 fi
 
+# Already running (e.g. from an earlier terminal)? Don't start a second copy.
+if [ -n "$(docker ps -q -f name=^marl-workshop$)" ]; then
+  echo "==> The workshop container is already running: open http://localhost:${JUPYTER_PORT}/lab?token=${JUPYTER_TOKEN}"
+  echo "    (to restart it: docker stop marl-workshop, then run this script again)"
+  exit 0
+fi
+docker rm marl-workshop >/dev/null 2>&1 || true   # leftover stopped container with the same name
+
 # Pick the image: $IMAGE > local build/load > public registry.
 if [ -z "${IMAGE:-}" ]; then
   if docker image inspect "${LOCAL_IMAGE}:latest" >/dev/null 2>&1; then IMAGE="${LOCAL_IMAGE}:latest"
