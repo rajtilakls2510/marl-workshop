@@ -221,3 +221,76 @@ def evolution_frames(run, k=4, seed=7):
         p = LoadedPolicy(c)
         frames += video(p, env_name, kw, seed=seed, title=f"{label} | train step {p.step / 1e6:.2f}M")
     return frames
+
+
+# ---------------------------------------------------------------------------- architectures
+def describe_networks(run, which=("actors", "critics")):
+    """Print every network of a run's final checkpoint: role, layer sizes, activation, #params."""
+    path = run["dir"] / "final.pt" if isinstance(run, dict) else Path(run)
+    d = torch.load(path, map_location="cpu", weights_only=False)
+    cfg, algo = d["config"], d["algo"]
+    agents = make_mpe(run["config"]["env"], **run["config"].get("env_kwargs", {})).possible_agents \
+        if isinstance(run, dict) else [f"agent {i}" for i in range(len(d["obs_dims"]))]
+    net_of = d.get("net_of", list(range(len(agents))))
+    act = {"ppo": ("tanh", "ReLU"), "ddpg": ("ReLU", "ReLU")}[algo]
+    head = {"ppo": "softplus+1 -> Beta(alpha, beta) per action dim", "ddpg": "sigmoid -> action in [0,1]"}[algo]
+    crit_kind = "V (state value)" if algo == "ppo" else "Q (action value)"
+    rows = []
+    for kind in which:
+        if kind not in d:
+            continue
+        sd = d[kind]
+        n_nets = len({k.split(".")[0] for k in sd})
+        for j in range(n_nets):
+            ws = [sd[k] for k in sorted(sd) if k.startswith(f"{j}.") and k.endswith("weight")]
+            sizes = [ws[0].shape[1]] + [w.shape[0] for w in ws]
+            params = sum(v.numel() for k, v in sd.items() if k.startswith(f"{j}."))
+            users = [a for a, n in zip(agents, net_of) if n == j] if algo == "ppo" else [agents[j]]
+            role = "actor" if kind == "actors" else f"critic {crit_kind}"
+            out = head if kind == "actors" else "scalar"
+            rows.append((role, ", ".join(users), " -> ".join(map(str, sizes)),
+                         act[0] if kind == "actors" else act[1], out, params))
+    w = [max(len(str(r[i])) for r in rows + [("network", "used by", "layers", "hidden act.", "output", "params")])
+         for i in range(6)]
+    hdr = ("network", "used by", "layers", "hidden act.", "output", "params")
+    print("  ".join(h.ljust(w[i]) for i, h in enumerate(hdr)))
+    for r in rows:
+        print("  ".join(str(x).ljust(w[i]) for i, x in enumerate(r)))
+    print(f"total parameters: {sum(r[5] for r in rows):,}")
+
+
+def load_benchmark(device="cpu"):
+    """Parameter-sharing benchmark table written by scripts/benchmark_sharing.py."""
+    name = "benchmark_sharing.csv" if device == "cpu" else f"benchmark_sharing_{device}.csv"
+    for base in (REPO_ROOT / "checkpoints" / "mpe",):
+        if (base / name).exists():
+            with open(base / name) as f:
+                return list(csv.DictReader(f))
+    raise FileNotFoundError(name)
+
+
+def plot_benchmark(rows, axes=None, title=""):
+    """Parameters, action time and update time vs number of agents, shared vs separate networks."""
+    import matplotlib.pyplot as plt
+
+    axes = axes if axes is not None else plt.subplots(1, 3, figsize=(13, 3.4))[1]
+    for shared, lab in (("True", "shared network"), ("False", "separate networks")):
+        r = [x for x in rows if x["shared"] == shared]
+        n = [int(x["N"]) for x in r]
+        for ax, key, yl in zip(axes, ("params", "act_ms", "update_s"),
+                               ("parameters", "choose actions (ms)", "one PPO update (s)")):
+            ax.plot(n, [float(x[key]) for x in r], marker="o", label=lab)
+            ax.set_xlabel("number of agents N")
+            ax.set_ylabel(yl)
+            ax.grid(alpha=0.3)
+    axes[0].set_yscale("log")
+    axes[0].legend()
+    if title:
+        axes[1].set_title(title)
+    return axes
+
+
+def snapshot(run, step):
+    """Policy from the snapshot closest to `step` environment steps."""
+    ckpt = min(run["ckpts"], key=lambda c: abs(int(c.stem.split("_")[1]) - step))
+    return LoadedPolicy(ckpt)

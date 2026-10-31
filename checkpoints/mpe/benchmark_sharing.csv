@@ -1,0 +1,9 @@
+N,shared,networks,params,act_ms,update_s,gpu_mem_mb
+3,True,2,14027,0.281,0.131,nan
+3,False,6,42081,0.529,0.175,nan
+6,True,2,25739,0.452,0.338,nan
+6,False,12,154434,1.053,0.417,nan
+10,True,2,52107,0.722,0.778,nan
+10,False,20,521070,1.866,0.976,nan
+20,True,2,171787,1.339,4.556,nan
+20,False,40,3435740,3.812,4.362,nan

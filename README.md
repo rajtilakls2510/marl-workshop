@@ -29,7 +29,7 @@ Then open `notebooks/00_check_setup.ipynb` and run it. All cells green = ready. 
 
 | Path | What |
 |---|---|
-| `notebooks/` | The workshop notebooks: `00` setup check, `01` MPE tour, `02` Speaker-Listener (non-stationarity), `03` Predator-Prey (arms race), `04` Coop Navigation (MADDPG→MAPPO, coordination, parameter sharing) |
+| `notebooks/` | The workshop notebooks: `00` setup check, `01` MPE tour, `02` Speaker-Listener (non-stationarity), `03` Predator-Prey (arms race), `04` Coop Navigation (MAPPO, parameter sharing, scaling) |
 | `marl/` | Small, readable PyTorch implementations of the algorithms |
 | `checkpoints/mpe/` | Trained agents and training logs for every run (snapshots across training, so the notebooks can compare early and late policies) |
 | `docker/`, `scripts/` | One-command environment setup |
