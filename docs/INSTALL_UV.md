@@ -26,6 +26,8 @@ cd marl-workshop
 
 A browser tab opens with `00_check_setup.ipynb`. Run it top to bottom.
 
+> **Pre-trained agents are only in the Docker image.** With the uv setup, notebooks `00` and `01` work as-is; the later notebooks load trained runs, which you can re-create yourself with `python scripts/train.py --run <name>` (they land in `runs/`; `--list` shows the names). Some runs take an hour or more on a laptop - use the Docker image for the workshop if you can.
+
 ## Doing it by hand (what the script does)
 ```bash
 # install uv:  curl -LsSf https://astral.sh/uv/install.sh | sh        (Windows PowerShell: irm https://astral.sh/uv/install.ps1 | iex)

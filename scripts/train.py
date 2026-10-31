@@ -51,6 +51,8 @@ def main():
     from marl.common.runner import Run
 
     preset = dict(PRESETS[args.run])
+    if preset["env"] == "smac":
+        return train_smac(args, preset)
     env_name, algo = preset.pop("env"), preset.pop("algo")
     steps = args.steps or preset.pop("steps")
     preset.pop("steps", None)
@@ -78,6 +80,34 @@ def main():
     print(f"==> {name}: {label} on {env_name} {env_kwargs}, {steps:,} steps, device {args.device}", flush=True)
     train(run, env_name, env_kwargs, cfg, steps, eval_every, seed=args.seed, device=args.device,
           label=label, log_fn=lambda s: print(s, flush=True))
+
+
+def train_smac(args, preset):
+    """SMAClite runs (team reward, discrete actions, worker processes)."""
+    from marl.common.smac_runner import SMACRun
+
+    preset.pop("env")
+    map_name, algo = preset.pop("map"), preset.pop("algo")
+    steps = args.steps or preset.pop("steps")
+    preset.pop("steps", None)
+    eval_every = args.eval_every or preset.pop("eval_every")
+    preset.pop("eval_every", None)
+    for kv in args.set:
+        k, v = kv.split("=", 1)
+        preset[k] = parse_value(v)
+    if algo == "smac_mappo":
+        from marl.algos.mappo_discrete import SMACPPOConfig as Cfg, train
+        label = "MAPPO"
+    else:
+        from marl.algos.value_decomp import VDConfig as Cfg, train
+        label = preset.get("mixer", "qmix").upper()
+    cfg = Cfg(**preset)
+    name = args.name or args.run
+    run = SMACRun(name, map_name, {"algo": algo, "label": f"{label} {map_name}", "steps": steps,
+                                   "seed": args.seed, **vars(cfg)}, out_root=args.out)
+    print(f"==> {name}: {label} on SMAClite {map_name}, {steps:,} steps, device {args.device}", flush=True)
+    train(run, map_name, cfg, steps, eval_every, seed=args.seed, device=args.device,
+          label=f"{label} {map_name}", log_fn=lambda s: print(s, flush=True))
 
 
 if __name__ == "__main__":

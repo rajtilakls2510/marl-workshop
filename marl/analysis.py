@@ -23,13 +23,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def find_run(name):
     """Where a named run lives: $MARL_CKPT_DIR/mpe/<name> (Docker image), <repo>/checkpoints/mpe/<name>
-    (committed results) or <repo>/runs/<name> (your own training)."""
+    (packaged results, git-ignored) or <repo>/runs/<name> (your own training)."""
     from marl.utils import ckpt_dir
 
-    for base in (ckpt_dir() / "mpe", REPO_ROOT / "checkpoints" / "mpe", REPO_ROOT / "runs"):
+    for base in (ckpt_dir() / "mpe", ckpt_dir() / "smac", REPO_ROOT / "checkpoints" / "mpe",
+                 REPO_ROOT / "checkpoints" / "smac", REPO_ROOT / "runs"):
         if (base / name / "log.csv").exists():
             return base / name
-    raise FileNotFoundError(f"run {name!r} not found in checkpoints/mpe/ or runs/")
+    raise FileNotFoundError(f"run {name!r} not found. Pre-trained runs ship only in the Docker image; "
+                            f"without it, train it yourself: python scripts/train.py --run <preset>")
 
 
 def load_run(path):
@@ -198,7 +200,7 @@ def plot_matrix(M, steps, ax=None, title="", xlabel="", ylabel="", fmt="{:.2f}",
 
     ax = ax or plt.gca()
     im = ax.imshow(M, cmap=cmap)
-    ticks = [f"{s / 1e6:.2f}M" for s in steps]
+    ticks = [s if isinstance(s, str) else f"{s / 1e6:.2f}M" for s in steps]   # steps or plain labels
     ax.set_xticks(range(len(steps)), ticks, rotation=45, fontsize=8)
     ax.set_yticks(range(len(steps)), ticks, fontsize=8)
     for i in range(M.shape[0]):
@@ -294,3 +296,195 @@ def snapshot(run, step):
     """Policy from the snapshot closest to `step` environment steps."""
     ckpt = min(run["ckpts"], key=lambda c: abs(int(c.stem.split("_")[1]) - step))
     return LoadedPolicy(ckpt)
+
+
+class FrozenAgent:
+    """Wraps a policy so that agent `i` stands still (all-zero action = no movement). Used for
+    counterfactuals: how much does the team lose without this agent?"""
+
+    def __init__(self, policy, i):
+        self.policy, self.i, self.n = policy, i, policy.n
+
+    def act_agent(self, j, obs_j, deterministic=True):
+        a = self.policy.act_agent(j, obs_j)
+        return np.zeros_like(a) if j == self.i else a
+
+    def act(self, obs, deterministic=True):
+        return [self.act_agent(j, obs[j]) for j in range(self.n)]
+
+
+def predator_stats(policy, episodes=64, seed=500, max_cycles=25):
+    """Predator-Prey, per predator: touches of the prey per episode, mean distance to the prey and
+    fraction of time spent off the arena (|x| or |y| > 1), and off the arena while the prey is more
+    than 1.0 away (`off_far`: not chasing it). All predators get the SAME reward
+    (10 x all touches), so these numbers are the only way to see who actually does the work."""
+    from marl.common.env import MPEBatch
+
+    env = MPEBatch("tag", num_envs=episodes, seed=seed, max_cycles=max_cycles)
+    obs = env.reset()
+    n_pred = env.groups.count("predators")
+    touch, dist, off, off_far = (np.zeros(n_pred) for _ in range(4))
+    for _ in range(max_cycles):
+        obs, _, _ = env.step(policy.act(obs))
+        for w in env.worlds():
+            prey = [a for a in w.agents if not a.adversary][0]
+            for i, p in enumerate(a for a in w.agents if a.adversary):
+                d = np.linalg.norm(p.state.p_pos - prey.state.p_pos)
+                touch[i] += d < p.size + prey.size
+                dist[i] += d
+                off[i] += np.abs(p.state.p_pos).max() > 1.0
+                off_far[i] += np.abs(p.state.p_pos).max() > 1.0 and d > 1.0
+    env.close()
+    T = episodes * max_cycles
+    return {"touches": touch / episodes, "dist": dist / T, "off_arena": off / T, "off_far": off_far / T}
+
+
+def predator_roles(run, episodes=64, seed=500):
+    """predator_stats for every snapshot of a Predator-Prey run, plus two summary curves:
+    `laziest_share` = smallest predator's share of the team's touches (1/3 = equal work, 0 = one
+    predator never touches the prey) and `max_off_arena` = the most-absent predator's time off-map."""
+    rows = [predator_stats(LoadedPolicy(c), episodes, seed) for c in run["ckpts"]]
+    out = {k: np.array([r[k] for r in rows]) for k in rows[0]}
+    total = out["touches"].sum(1)
+    out["laziest_share"] = np.where(total > 0, out["touches"].min(1) / np.maximum(total, 1e-9), np.nan)
+    out["max_off_arena"] = out["off_arena"].max(1)
+    out["team_touches"] = total
+    out["steps"] = np.array([int(c.stem.split("_")[1]) for c in run["ckpts"]])
+    return out
+
+
+def predator_contributions(policy, episodes=64, seed=500):
+    """Counterfactual: team touches with all predators minus team touches when predator i stands
+    still. A predator whose absence costs nothing contributes nothing (a 'lazy' agent)."""
+    full = predator_stats(policy, episodes, seed)["touches"].sum()
+    n_pred = len(predator_stats(policy, 1, seed)["touches"])
+    return full, np.array([full - predator_stats(FrozenAgent(policy, i), episodes, seed)["touches"].sum()
+                           for i in range(n_pred)])
+
+
+# ---------------------------------------------------------------- Predator-Prey credit assignment
+TAG_CREDIT_ALGOS = {"maddpg": "MADDPG", "facvdn": "FAC-VDN", "facqmix": "FAC-QMIX"}
+
+
+def tag_seed_runs(algo):
+    """The 3 seeds of a Predator-Prey run: tag_<algo>, tag_<algo>_s1, tag_<algo>_s2."""
+    return [load_run(f"tag_{algo}{sfx}") for sfx in ("", "_s1", "_s2")]
+
+
+def _summary_rows(name):
+    torch.set_num_threads(1)
+    run = load_run(name)
+    rows = []
+    for c in run["ckpts"]:
+        st = predator_stats(LoadedPolicy(c), episodes=128)
+        t = st["touches"]
+        rows.append({"run": name, "step": int(c.stem.split("_")[1]), "team_touches": t.sum(),
+                     "laziest_share": t.min() / t.sum() if t.sum() > 0 else np.nan,
+                     "max_off_arena": st["off_arena"].max(), "max_off_far": st["off_far"].max(),
+                     **{f"touches_{i}": v for i, v in enumerate(t)},
+                     **{f"off_arena_{i}": v for i, v in enumerate(st["off_arena"])}})
+    return rows
+
+
+def compute_tag_credit_summary(out=None, processes=9):
+    """Per-predator statistics for every snapshot of every seed (slow: a few minutes) -> CSV that
+    the notebook reads with load_tag_credit_summary()."""
+    from concurrent.futures import ProcessPoolExecutor
+
+    names = [f"tag_{a}{sfx}" for a in TAG_CREDIT_ALGOS for sfx in ("", "_s1", "_s2")]
+    with ProcessPoolExecutor(processes) as ex:
+        rows = [r for rs in ex.map(_summary_rows, names) for r in rs]
+    out = Path(out or REPO_ROOT / "checkpoints" / "mpe" / "tag_credit_summary.csv")
+    with open(out, "w", newline="") as f:
+        w = csv.DictWriter(f, fieldnames=list(rows[0]))
+        w.writeheader()
+        w.writerows(rows)
+    return out
+
+
+def load_tag_credit_summary():
+    """{algo: {column: array (seeds, snapshots)}} from checkpoints/mpe/tag_credit_summary.csv."""
+    from marl.utils import ckpt_dir
+
+    path = next(p for p in (ckpt_dir() / "mpe" / "tag_credit_summary.csv",
+                            REPO_ROOT / "checkpoints" / "mpe" / "tag_credit_summary.csv") if p.exists())
+    with open(path) as f:
+        rows = list(csv.DictReader(f))
+    out = {}
+    for algo in TAG_CREDIT_ALGOS:
+        per_seed = []
+        for sfx in ("", "_s1", "_s2"):
+            rs = sorted((r for r in rows if r["run"] == f"tag_{algo}{sfx}"), key=lambda r: int(r["step"]))
+            per_seed.append({k: np.array([float(r[k]) for r in rs]) for k in rs[0] if k != "run"})
+        out[algo] = {k: np.stack([d[k] for d in per_seed]) for k in per_seed[0]}
+    return out
+
+
+def plot_tag_credit(summary, column, ax=None, title=None, ylabel=None, colors=None, freeze=500_000):
+    """Mean over seeds (line) and min-max over seeds (band) of one summary column."""
+    import matplotlib.pyplot as plt
+
+    ax = ax or plt.gca()
+    colors = colors or {"maddpg": "tab:blue", "facvdn": "tab:orange", "facqmix": "tab:green"}
+    for algo, d in summary.items():
+        x, y = d["step"][0] / 1e6, d[column]
+        ax.plot(x, np.nanmean(y, 0), color=colors[algo], label=TAG_CREDIT_ALGOS[algo])
+        ax.fill_between(x, np.nanmin(y, 0), np.nanmax(y, 0), color=colors[algo], alpha=0.15)
+    if freeze:
+        ax.axvline(freeze / 1e6, color="gray", ls="--", lw=1)
+    ax.set_xlabel("training steps (millions)")
+    ax.set_ylabel(ylabel or column)
+    ax.set_title(title or column)
+    ax.grid(alpha=0.3)
+    return ax
+
+
+def tag_paths(policy, seed=0, max_cycles=25):
+    """Positions of every agent during one episode: array (T+1, n_agents, 2), agent order as env."""
+    from marl.common.env import MPEBatch
+
+    env = MPEBatch("tag", num_envs=1, seed=seed, max_cycles=max_cycles)
+    obs = env.reset()
+    pos = [[a.state.p_pos.copy() for a in env.worlds()[0].agents]]
+    for _ in range(max_cycles):
+        obs, _, _ = env.step(policy.act(obs))
+        pos.append([a.state.p_pos.copy() for a in env.worlds()[0].agents])
+    env.close()
+    return np.array(pos)
+
+
+def plot_tag_paths(policy, seed=0, ax=None, title=""):
+    """One episode seen from above: predators red/orange (circle = start, x = end), prey green,
+    arena dashed."""
+    import matplotlib.pyplot as plt
+
+    ax = ax or plt.gca()
+    P = tag_paths(policy, seed)
+    reds = ["#d62728", "#ff7f0e", "#8c1c13"]
+    for i in range(P.shape[1]):
+        c = reds[i] if i < P.shape[1] - 1 else "#2ca02c"
+        lab = f"predator {i}" if i < P.shape[1] - 1 else "prey"
+        ax.plot(P[:, i, 0], P[:, i, 1], "-", color=c, lw=1.8, label=lab)
+        ax.plot(P[0, i, 0], P[0, i, 1], "o", color=c)
+        ax.plot(P[-1, i, 0], P[-1, i, 1], "x", color=c, ms=9, mew=2)
+    ax.add_patch(plt.Rectangle((-1, -1), 2, 2, fill=False, ls="--", color="gray"))
+    lim = max(1.3, np.abs(P).max() + 0.1)
+    ax.set_xlim(-lim, lim)
+    ax.set_ylim(-lim, lim)
+    ax.set_aspect("equal")
+    ax.set_title(title)
+    return ax
+
+
+def tag_algo_crossplay(step=2_000_000, episodes=64):
+    """Predators of each algorithm vs the prey of each algorithm (mean over the 3 x 3 seed pairs):
+    team touches, and the most-absent predator's time off the arena."""
+    names = list(TAG_CREDIT_ALGOS)
+    pols = {a: [snapshot(r, step) for r in tag_seed_runs(a)] for a in names}
+    touches, off = np.zeros((3, 3)), np.zeros((3, 3))
+    for i, a in enumerate(names):
+        for j, b in enumerate(names):
+            st = [predator_stats(MixedPolicy([pp] * 3 + [qq]), episodes) for pp in pols[a] for qq in pols[b]]
+            touches[i, j] = np.mean([s["touches"].sum() for s in st])
+            off[i, j] = np.mean([s["off_arena"].max() for s in st])
+    return touches, off, [TAG_CREDIT_ALGOS[a] for a in names]

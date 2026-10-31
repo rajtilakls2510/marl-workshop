@@ -25,5 +25,5 @@ The venue Wi-Fi will not survive N people pulling ~3-4 GB. Bring the offline kit
 ## Checklist before the day
 - [ ] GHCR package set to public; repo public.
 - [ ] Fresh-machine test of both routes on Windows and macOS (the `.ps1/.bat` scripts and the arm64 image are written but untested here).
-- [ ] All checkpoints trained and committed/baked; `./docker/run.sh verify` green.
+- [ ] All checkpoints trained, packaged into `checkpoints/` (git-ignored) and baked into the image; `./docker/run.sh verify` green.
 - [ ] USB kits and a LAN server rehearsed.

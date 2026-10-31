@@ -29,12 +29,13 @@ Then open `notebooks/00_check_setup.ipynb` and run it. All cells green = ready. 
 
 | Path | What |
 |---|---|
-| `notebooks/` | The workshop notebooks: `00` setup check, `01` MPE tour, `02` Speaker-Listener (non-stationarity), `03` Predator-Prey (arms race), `04` Coop Navigation (MAPPO, parameter sharing, scaling) |
+| `notebooks/` | The workshop notebooks: `00` setup check, `01` MPE tour, `02` Speaker-Listener (non-stationarity), `03` Predator-Prey (arms race), `03b` Predator-Prey (credit assignment: MADDPG vs VDN/QMIX critics), `04` Coop Navigation (MAPPO, parameter sharing, scaling), `05` SMAClite tour, `06` SMAClite (MAPPO vs VDN vs QMIX) |
 | `marl/` | Small, readable PyTorch implementations of the algorithms |
-| `checkpoints/mpe/` | Trained agents and training logs for every run (snapshots across training, so the notebooks can compare early and late policies) |
+| `checkpoints/` | Trained agents and training logs for every run (snapshots across training, so the notebooks can compare early and late policies). **Shipped only inside the Docker image** (not in git); without Docker, re-create a run with `scripts/train.py` |
 | `docker/`, `scripts/` | One-command environment setup |
 | `verify_env.py` | Environment self-check: `python verify_env.py` |
 | `scripts/render_mpe.py` | Make a video of an MPE task: `python scripts/render_mpe.py --env tag --out videos/tag.mp4` |
+| `scripts/explore_smaclite.py` | Print a SMAClite map's MDP and record a random-play video: `python scripts/explore_smaclite.py --map 2s3z` |
 | `scripts/train.py` | Re-train any result yourself: `python scripts/train.py --list`, then e.g. `python scripts/train.py --run sl_maddpg` (outputs in `runs/`) |
 
 Environments used: Multi-Agent Particle Environment (via `mpe2`/PettingZoo), SMAClite, VMAS.

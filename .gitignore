@@ -11,3 +11,7 @@ lightning_logs/
 .DS_Store
 videos/
 docker/build.log
+
+# trained runs ship only inside the Docker image (COPY of the working tree), not in git
+checkpoints/*
+!checkpoints/_smoke/
