@@ -1,0 +1,12 @@
+{
+  // GitHub Codespaces: run the workshop image in the cloud (browser only, no local install).
+  "name": "MARL workshop",
+  "image": "ghcr.io/rajtilakls2510/marl-workshop:test",
+  // keep the image's own start command: Xvfb (for VMAS videos) + JupyterLab on port 8888
+  "overrideCommand": false,
+  "forwardPorts": [8888],
+  "portsAttributes": {
+    "8888": { "label": "JupyterLab (token: marl)", "onAutoForward": "openBrowser" }
+  },
+  "hostRequirements": { "cpus": 2, "memory": "8gb", "storage": "32gb" }
+}
