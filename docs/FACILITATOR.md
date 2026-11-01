@@ -4,7 +4,7 @@
 ```bash
 ./docker/build.sh                 # local image marl-workshop:latest  (GPU-capable torch, ~8 GB on disk)
 FLAVOR=cpu ./docker/build.sh cpu  # slim CPU-only variant, tag :cpu (~2 GB) -- emergency option for slow Wi-Fi
-GITHUB_USER=<you> ./docker/push.sh   # multi-arch push to ghcr.io/<you>/marl-workshop (see header of push.sh for login)
+GITHUB_USER=<you> ./docker/push.sh   # push (amd64) to ghcr.io/<you>/marl-workshop (see header of push.sh for login)
 ```
 After the first push, set the package visibility to **Public** in GitHub (otherwise attendees can't pull anonymously).
 The GitHub user (`rajtilakls2510`) is set in `docker/config.sh` and `docker/run.ps1`.

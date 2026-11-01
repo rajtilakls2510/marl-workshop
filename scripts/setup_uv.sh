@@ -37,6 +37,12 @@ if [ -n "$WHEELHOUSE" ]; then
 else
   uv pip install --python .venv/bin/python --torch-backend "$BACKEND" -r requirements.txt
 fi
+# smaclite needs pygame, mpe2 needs pygame-ce; both provide the `pygame` module -> pygame-ce must win
+if [ -n "$WHEELHOUSE" ]; then
+  uv pip install --python .venv/bin/python --no-index --find-links "$WHEELHOUSE" --reinstall-package pygame-ce pygame-ce==2.5.8
+else
+  uv pip install --python .venv/bin/python --reinstall-package pygame-ce pygame-ce==2.5.8
+fi
 
 echo "==> Verifying"
 .venv/bin/python verify_env.py

@@ -18,7 +18,10 @@ vmas==1.5.2                  # Vectorized Multi-Agent Simulator
 # SMAClite (StarCraft II micromanagement without the game). Pinned commit, installed
 # from the GitHub zip so that `git` is NOT required on the attendee's machine.
 smaclite @ https://github.com/uoe-agents/smaclite/archive/0d6abbea1334011984ae4704a0ef7a33c36057d6.zip
-pygame==2.6.1
+pygame==2.6.1                # needed by smaclite
+pygame-ce==2.5.8             # needed by mpe2. Both install the same `pygame` module: pygame-ce must be
+                             # installed LAST (the setup scripts and Dockerfile re-install it), otherwise
+                             # `import pygame` fails with "pygame.imageext has no attribute _load_sized_svg"
 
 # --- tooling ----------------------------------------------------------------
 matplotlib==3.10.9

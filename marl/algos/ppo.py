@@ -1,4 +1,4 @@
-"""IPPO and MAPPO for continuous-action MPE.
+"""IPPO and MAPPO for continuous-action MPE (mpe2 loop env or the vectorized VMAS port).
 
 They are the same algorithm except for ONE line: what the critic is allowed to see.
     IPPO  (critic="local")   - V_i(o_i):  each agent judges its situation from its own view
@@ -128,7 +128,8 @@ class PPO:
                         acts[i], logp[i] = a[:, k], lp[:, k]
                         val[i] = self.vnorm[i].denormalize(v[:, k])
             logp, val = torch.stack(logp, -1), torch.stack(val, -1)
-            obs, rew, done = env.step([a.cpu().numpy() for a in acts])
+            # VMAS keeps everything as tensors on the device; the mpe2 loop env wants numpy
+            obs, rew, done = env.step(acts if getattr(env, "torch_native", False) else [a.cpu().numpy() for a in acts])
             for i in range(self.n):
                 buf["obs"][i].append(o[i])
                 buf["act"][i].append(acts[i])
@@ -196,21 +197,31 @@ class PPO:
 
 
 def train(run, env_name, env_kwargs, cfg: PPOConfig, total_steps, eval_every, seed=0,
-          device="cpu", label="", log_fn=print):
-    """Train IPPO/MAPPO; `run` is a marl.common.runner.Run that evaluates/saves/records."""
+          device="cpu", label="", log_fn=print, max_minutes=None, eval_every_s=None):
+    """Train IPPO/MAPPO; `run` is a marl.common.runner.Run that evaluates/saves/records.
+    max_minutes: stop after this much *training* time (evaluation excluded) - for wall-clock comparisons.
+    eval_every_s: evaluate every this many seconds of training time instead of every `eval_every` steps."""
     torch.manual_seed(seed)
     np.random.seed(seed)
-    env = MPEBatch(env_name, num_envs=cfg.num_envs, seed=seed, **env_kwargs)
+    if env_name.startswith("vmas_"):              # e.g. "vmas_spread": one batched VMAS world
+        from marl.common.vmas_env import VMASBatch
+
+        env = VMASBatch(env_name[len("vmas_"):], num_envs=cfg.num_envs, seed=seed, device=device, **env_kwargs)
+    else:                                         # K mpe2 envs in a Python loop
+        env = MPEBatch(env_name, num_envs=cfg.num_envs, seed=seed, **env_kwargs)
     algo = PPO(env, cfg, device)
     steps_per_update = cfg.num_envs * env.max_cycles
-    step, next_eval = 0, 0
+    step, next_eval, next_eval_s = 0, 0, 0.0
     while True:
-        if step >= next_eval:
+        out_of_time = max_minutes is not None and run.train_seconds() >= 60 * max_minutes
+        if (step >= next_eval if eval_every_s is None else run.train_seconds() >= next_eval_s) \
+                or step >= total_steps or out_of_time:
             row = run.evaluate_and_save(algo, step, label=label)
             log_fn(f"[{run.name}] step {step:>9,} " + " ".join(f"{k}={v:.3g}" for k, v in row.items()
                                                                     if k not in ("step",)))
             next_eval += eval_every
-        if step >= total_steps:
+            next_eval_s += eval_every_s or 0
+        if step >= total_steps or out_of_time:
             break
         rb, train_ret = algo.collect(env)
         algo.update(rb)

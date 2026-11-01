@@ -2,6 +2,8 @@
     python scripts/train.py --run <name>
 """
 
+_BUDGET = dict(steps=10**12, eval_every=10**12)    # time-budgeted runs: stop on `minutes`
+
 PRESETS = {
     # ---- Speaker-Listener: cooperative non-stationarity + communication -----------------
     "sl_maddpg": dict(env="speaker_listener", algo="ddpg", critic="central", steps=1_000_000, eval_every=50_000),
@@ -34,6 +36,24 @@ PRESETS = {
     "spread_ippo_N3": dict(env="spread", N=3, algo="ppo", critic="local", share=False, steps=3_000_000, eval_every=150_000),
     "spread_mappo_unshared_N3": dict(env="spread", N=3, algo="ppo", critic="central", share=False, steps=3_000_000, eval_every=150_000),
     "spread_mappo_unshared_N6": dict(env="spread", N=6, algo="ppo", critic="central", share=False, steps=8_000_000, eval_every=400_000),
+    # ---- Vectorization: the same MAPPO on VMAS's port of Coop Navigation (one batched simulation) ----
+    # Same MAPPO (shared, central critic) everywhere; every run gets the same TRAINING-TIME budget and is
+    # evaluated every 30 s of training time, so the curves compare quality vs wall-clock minutes.
+    # Minibatch size: 800 time steps with 64 copies (as the mpe2 runs), 6,400 with large batches.
+    "loop_spread_N3_cpu64": dict(env="spread", N=3, algo="ppo", critic="central", share=True, num_envs=64,
+                                 device="cpu", minutes=10, eval_every_s=30, **_BUDGET),
+    # VMAS episodes are 100 steps: VMAS agents are slower than mpe2's (0.88 vs 4.2 units in 25 steps at full
+    # force), so with 25 steps most landmarks are physically out of reach (~75% of episodes).
+    "vmas_spread_N3_cpu64": dict(env="vmas_spread", N=3, max_cycles=100, algo="ppo", critic="central", share=True,
+                                 num_envs=64, minibatches=8, device="cpu", minutes=10, eval_every_s=30, **_BUDGET),
+    "vmas_spread_N3_cpu1024": dict(env="vmas_spread", N=3, max_cycles=100, algo="ppo", critic="central", share=True,
+                                   num_envs=1024, minibatches=16, device="cpu", minutes=10, eval_every_s=30, **_BUDGET),
+    "vmas_spread_N3_gpu4096": dict(env="vmas_spread", N=3, max_cycles=100, algo="ppo", critic="central", share=True,
+                                   num_envs=4096, minibatches=64, device="cuda", minutes=10, eval_every_s=30, **_BUDGET),
+    "vmas_spread_N6_cpu64": dict(env="vmas_spread", N=6, max_cycles=100, algo="ppo", critic="central", share=True,
+                                 num_envs=64, minibatches=8, device="cpu", minutes=30, eval_every_s=60, **_BUDGET),
+    "vmas_spread_N6_gpu4096": dict(env="vmas_spread", N=6, max_cycles=100, algo="ppo", critic="central", share=True,
+                                   num_envs=4096, minibatches=64, device="cuda", minutes=30, eval_every_s=60, **_BUDGET),
     # ---- SMAClite: credit assignment (team reward) - MAPPO vs value decomposition --------
     "smac_2s3z_mappo": dict(env="smac", map="2s3z", algo="smac_mappo", steps=1_000_000, eval_every=50_000),
     "smac_2s3z_vdn": dict(env="smac", map="2s3z", algo="smac_vd", mixer="vdn", steps=1_000_000, eval_every=50_000),

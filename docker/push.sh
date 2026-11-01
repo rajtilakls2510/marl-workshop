@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Maintainer: publish the image to GHCR as a multi-arch manifest
-# (linux/amd64 = CUDA torch, linux/arm64 = CPU torch for Apple Silicon).
+# Maintainer: publish the image to GHCR (linux/amd64 only; Apple Silicon Macs run it under emulation).
 #
 # One-time login:  echo $GITHUB_PAT | docker login ghcr.io -u <GITHUB_USER> --password-stdin
 #   (PAT needs the write:packages scope). Afterwards make the package PUBLIC in the GitHub UI
@@ -16,7 +15,7 @@ if [ -z "$GITHUB_USER" ]; then
   echo "ERROR: GITHUB_USER is empty (set it in docker/config.sh)." >&2; exit 1
 fi
 TAG="${1:-latest}"
-PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
+PLATFORMS="${PLATFORMS:-linux/amd64}"
 
 docker buildx inspect marl-builder >/dev/null 2>&1 || docker buildx create --name marl-builder --use
 docker buildx use marl-builder

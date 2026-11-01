@@ -29,6 +29,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     if [ "${TARGETARCH:-amd64}" != "amd64" ]; then FLAVOR=cpu; fi; \
     uv venv /opt/venv; \
     uv pip install --python /opt/venv/bin/python --torch-backend "${FLAVOR}" -r /tmp/requirements.txt; \
+    # smaclite needs pygame, mpe2 needs pygame-ce; both provide the `pygame` module -> pygame-ce must win
+    uv pip install --python /opt/venv/bin/python --reinstall-package pygame-ce pygame-ce==2.5.8; \
     # triton is only needed for torch.compile (not used in the workshop): saves ~0.7 GB.
     uv pip uninstall --python /opt/venv/bin/python triton || true
 

@@ -31,6 +31,9 @@ Write-Host "==> Installing packages (torch backend: $Backend) -- this takes a fe
 if ($Wheelhouse) { uv pip install --python $Py --no-index --find-links $Wheelhouse -r requirements.txt }
 else             { uv pip install --python $Py --torch-backend $Backend -r requirements.txt }
 if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: install failed" -ForegroundColor Red; exit 1 }
+# smaclite needs pygame, mpe2 needs pygame-ce; both provide the `pygame` module -> pygame-ce must win
+if ($Wheelhouse) { uv pip install --python $Py --no-index --find-links $Wheelhouse --reinstall-package pygame-ce pygame-ce==2.5.8 }
+else             { uv pip install --python $Py --reinstall-package pygame-ce pygame-ce==2.5.8 }
 
 Write-Host "==> Verifying"
 & $Py verify_env.py

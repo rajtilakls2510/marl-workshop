@@ -26,8 +26,8 @@ def find_run(name):
     (packaged results, git-ignored) or <repo>/runs/<name> (your own training)."""
     from marl.utils import ckpt_dir
 
-    for base in (ckpt_dir() / "mpe", ckpt_dir() / "smac", REPO_ROOT / "checkpoints" / "mpe",
-                 REPO_ROOT / "checkpoints" / "smac", REPO_ROOT / "runs"):
+    for base in [b / s for b in (ckpt_dir(), REPO_ROOT / "checkpoints") for s in ("mpe", "smac", "vmas")] \
+            + [REPO_ROOT / "runs"]:
         if (base / name / "log.csv").exists():
             return base / name
     raise FileNotFoundError(f"run {name!r} not found. Pre-trained runs ship only in the Docker image; "
@@ -44,7 +44,13 @@ def load_run(path):
         rows = list(csv.DictReader(f))
     log = {k: np.array([float(r[k]) if r[k] != "" else np.nan for r in rows]) for k in rows[0]}
     return {"dir": path, "config": json.loads((path / "config.json").read_text()), "log": log,
-            "ckpts": sorted((path / "ckpt").glob("step_*.pt"))}
+            "ckpts": sorted((path / "ckpt").glob("step_*.pt"), key=_step_of)}
+
+
+def _step_of(path):
+    """Training step in a snapshot/clip file name (sort numerically: past 99,999,999 steps the
+    names get a 9th digit and alphabetical order breaks)."""
+    return int(Path(path).stem.split("_")[1])
 
 
 class LoadedPolicy:

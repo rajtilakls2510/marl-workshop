@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """Copy finished training runs from runs/<name>/ into checkpoints/<suite>/<name>/ (what is shipped in
-the repo and baked into the Docker image); suite = smac for SMAClite runs, mpe otherwise.
+the repo and baked into the Docker image); suite = smac / vmas / mpe.
 
 Kept: log.csv, config.json, ckpt/ (all snapshots - the analyses compare policies across training
 time), final.pt, evolution.mp4. Not kept: per-snapshot clips in videos/ (notebooks regenerate
@@ -20,7 +20,8 @@ SRC = ROOT / "runs"
 
 def destination(src):
     env = json.loads((src / "config.json").read_text()).get("env", "")
-    return ROOT / "checkpoints" / ("smac" if env.startswith("smac") else "mpe") / src.name
+    suite = "smac" if env.startswith("smac") else "vmas" if env.startswith("vmas") else "mpe"
+    return ROOT / "checkpoints" / suite / src.name
 
 
 def main():

@@ -30,8 +30,10 @@ def main():
     p.add_argument("--name", help="output folder name (default: preset name)")
     p.add_argument("--steps", type=int, help="override total env steps")
     p.add_argument("--eval-every", type=int)
+    p.add_argument("--minutes", type=float, help="PPO: stop after this many minutes of training time")
+    p.add_argument("--eval-every-s", type=float, help="PPO: evaluate every N seconds of training time")
     p.add_argument("--seed", type=int, default=0)
-    p.add_argument("--device", default="cpu")
+    p.add_argument("--device", default=None, help="cpu / cuda (default: the preset's device, else cpu)")
     p.add_argument("--threads", type=int, default=2, help="torch CPU threads (keep small when running many)")
     p.add_argument("--out", default=None, help="runs root directory (default: <repo>/runs)")
     p.add_argument("--set", nargs="*", default=[], metavar="KEY=VALUE", help="override config fields")
@@ -54,14 +56,17 @@ def main():
     if preset["env"] == "smac":
         return train_smac(args, preset)
     env_name, algo = preset.pop("env"), preset.pop("algo")
+    device = args.device or preset.pop("device", "cpu")
+    preset.pop("device", None)
+    preset_minutes, preset_eval_s = preset.pop("minutes", None), preset.pop("eval_every_s", None)
     steps = args.steps or preset.pop("steps")
     preset.pop("steps", None)
     eval_every = args.eval_every or preset.pop("eval_every")
     preset.pop("eval_every", None)
-    env_kwargs = {"N": preset.pop("N")} if "N" in preset else {}
+    env_kwargs = {k: preset.pop(k) for k in ("N", "max_cycles") if k in preset}    # environment settings
     for kv in args.set:
         k, v = kv.split("=", 1)
-        if k in ("N", "local_ratio"):
+        if k in ("N", "local_ratio", "max_cycles"):
             env_kwargs[k] = parse_value(v)
         else:
             preset[k] = parse_value(v)
@@ -75,11 +80,21 @@ def main():
     if algo == "ppo" and not cfg.share:
         label += " (unshared)"
     name = args.name or args.run
-    run = Run(name, env_name, env_kwargs, {"algo": algo, "label": label, "steps": steps, "seed": args.seed,
-                                            **vars(cfg)}, out_root=args.out)
-    print(f"==> {name}: {label} on {env_name} {env_kwargs}, {steps:,} steps, device {args.device}", flush=True)
-    train(run, env_name, env_kwargs, cfg, steps, eval_every, seed=args.seed, device=args.device,
-          label=label, log_fn=lambda s: print(s, flush=True))
+    config = {"algo": algo, "label": label, "steps": steps, "seed": args.seed, "device": device, **vars(cfg)}
+    if env_name.startswith("vmas_"):
+        from marl.common.runner import VMASRun
+
+        label += f" | VMAS {device} K={cfg.num_envs}"
+        config["label"] = label
+        run = VMASRun(name, env_name, env_kwargs, config, out_root=args.out, device=device)
+    else:
+        label += f" | loop K={cfg.num_envs}" if env_name == "spread" and "N" in env_kwargs else ""
+        run = Run(name, env_name, env_kwargs, config, out_root=args.out)
+    print(f"==> {name}: {label} on {env_name} {env_kwargs}, {steps:,} steps, device {device}", flush=True)
+    timing = {"max_minutes": args.minutes or preset_minutes, "eval_every_s": args.eval_every_s or preset_eval_s} \
+        if algo == "ppo" else {}
+    train(run, env_name, env_kwargs, cfg, steps, eval_every, seed=args.seed, device=device,
+          label=label, log_fn=lambda s: print(s, flush=True), **timing)
 
 
 def train_smac(args, preset):
@@ -105,8 +120,8 @@ def train_smac(args, preset):
     name = args.name or args.run
     run = SMACRun(name, map_name, {"algo": algo, "label": f"{label} {map_name}", "steps": steps,
                                    "seed": args.seed, **vars(cfg)}, out_root=args.out)
-    print(f"==> {name}: {label} on SMAClite {map_name}, {steps:,} steps, device {args.device}", flush=True)
-    train(run, map_name, cfg, steps, eval_every, seed=args.seed, device=args.device,
+    print(f"==> {name}: {label} on SMAClite {map_name}, {steps:,} steps, device {args.device or 'cpu'}", flush=True)
+    train(run, map_name, cfg, steps, eval_every, seed=args.seed, device=(args.device or "cpu"),
           label=f"{label} {map_name}", log_fn=lambda s: print(s, flush=True))
 
 

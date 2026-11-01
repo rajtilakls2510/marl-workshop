@@ -33,12 +33,14 @@ A browser tab opens with `00_check_setup.ipynb`. Run it top to bottom.
 # install uv:  curl -LsSf https://astral.sh/uv/install.sh | sh        (Windows PowerShell: irm https://astral.sh/uv/install.ps1 | iex)
 uv venv --python 3.10 .venv
 uv pip install --python .venv/bin/python --torch-backend cpu -r requirements.txt     # Windows: .venv\Scripts\python.exe
+uv pip install --python .venv/bin/python --reinstall-package pygame-ce pygame-ce==2.5.8   # must come last (see requirements.txt)
 .venv/bin/python verify_env.py
 ```
 Plain `pip` also works if you already have Python 3.10:
 ```bash
 python3.10 -m venv .venv && source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install --extra-index-url https://download.pytorch.org/whl/cpu -r requirements.txt
+pip install --force-reinstall --no-deps pygame-ce==2.5.8
 ```
 
 ## Offline (USB/LAN wheelhouse)
