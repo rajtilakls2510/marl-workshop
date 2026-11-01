@@ -145,7 +145,8 @@ def save_video(frames, path, fps=10):
         with imageio.get_writer(path, fps=fps, codec="libx264", quality=8, macro_block_size=1,
                                 pixelformat="yuv420p") as w:
             for f in frames:
-                w.append_data(f)
+                h, wd = f.shape[0] // 2 * 2, f.shape[1] // 2 * 2       # yuv420p needs even width and height
+                w.append_data(f[:h, :wd])
     else:
         raise ValueError(f"unsupported video format {path.suffix!r} (use .mp4 or .gif)")
     return path

@@ -26,7 +26,7 @@ def find_run(name):
     (packaged results, git-ignored) or <repo>/runs/<name> (your own training)."""
     from marl.utils import ckpt_dir
 
-    for base in [b / s for b in (ckpt_dir(), REPO_ROOT / "checkpoints") for s in ("mpe", "smac", "vmas")] \
+    for base in [b / s for b in (ckpt_dir(), REPO_ROOT / "checkpoints") for s in ("mpe", "smac", "vmas", "selfplay")] \
             + [REPO_ROOT / "runs"]:
         if (base / name / "log.csv").exists():
             return base / name

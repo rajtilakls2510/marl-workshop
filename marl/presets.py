@@ -54,6 +54,10 @@ PRESETS = {
                                  num_envs=64, minibatches=8, device="cpu", minutes=30, eval_every_s=60, **_BUDGET),
     "vmas_spread_N6_gpu4096": dict(env="vmas_spread", N=6, max_cycles=100, algo="ppo", critic="central", share=True,
                                    num_envs=4096, minibatches=64, device="cuda", minutes=30, eval_every_s=60, **_BUDGET),
+    # ---- Self-play on the hand-made two-player Pong (one network plays both sides) ---------------
+    # ent_coef 0.002: with 0.01 the policy stayed near-random (entropy 0.88 of max 1.10) and Elo plateaued early
+    "pong_selfplay_pool": dict(env="pong", algo="selfplay_ppo", opponent="pool", ent_coef=0.002, device="cuda",
+                               minutes=25, eval_every_s=90, **_BUDGET),
     # ---- SMAClite: credit assignment (team reward) - MAPPO vs value decomposition --------
     "smac_2s3z_mappo": dict(env="smac", map="2s3z", algo="smac_mappo", steps=1_000_000, eval_every=50_000),
     "smac_2s3z_vdn": dict(env="smac", map="2s3z", algo="smac_vd", mixer="vdn", steps=1_000_000, eval_every=50_000),

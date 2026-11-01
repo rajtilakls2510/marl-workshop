@@ -44,7 +44,8 @@ ENV PATH=/opt/venv/bin:$PATH \
     MESA_SHADER_CACHE_DISABLE=true \
     HOME=/home/marl \
     MARL_CKPT_DIR=/opt/marl-workshop/checkpoints \
-    JUPYTER_TOKEN=marl
+    JUPYTER_TOKEN=marl \
+    DISPLAY=:99
 
 # VMAS renders with pyglet (OpenGL), which needs a display even for rgb_array frames:
 # a virtual X server (Xvfb) + Mesa software GL make that work headlessly. ~60 MB.

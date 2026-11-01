@@ -53,6 +53,8 @@ def main():
     from marl.common.runner import Run
 
     preset = dict(PRESETS[args.run])
+    if preset["env"] == "pong":
+        return train_selfplay(args, preset)
     if preset["env"] == "smac":
         return train_smac(args, preset)
     env_name, algo = preset.pop("env"), preset.pop("algo")
@@ -123,6 +125,31 @@ def train_smac(args, preset):
     print(f"==> {name}: {label} on SMAClite {map_name}, {steps:,} steps, device {args.device or 'cpu'}", flush=True)
     train(run, map_name, cfg, steps, eval_every, seed=args.seed, device=(args.device or "cpu"),
           label=f"{label} {map_name}", log_fn=lambda s: print(s, flush=True))
+
+
+def train_selfplay(args, preset):
+    """Self-play on the hand-made two-player Pong (one network plays both sides)."""
+    from marl.algos.selfplay_ppo import SelfPlayConfig, train
+    from marl.selfplay import SelfPlayRun
+
+    preset.pop("env"), preset.pop("algo")
+    device = args.device or preset.pop("device", "cpu")
+    preset.pop("device", None)
+    steps, eval_every = args.steps or preset.pop("steps"), args.eval_every or preset.pop("eval_every")
+    preset.pop("steps", None), preset.pop("eval_every", None)
+    minutes, eval_s = args.minutes or preset.pop("minutes", None), args.eval_every_s or preset.pop("eval_every_s", None)
+    preset.pop("minutes", None), preset.pop("eval_every_s", None)
+    for kv in args.set:
+        k, v = kv.split("=", 1)
+        preset[k] = parse_value(v)
+    cfg = SelfPlayConfig(**preset)
+    label = f"self-play ({cfg.opponent})"
+    name = args.name or args.run
+    run = SelfPlayRun(name, {"algo": "selfplay_ppo", "label": label, "steps": steps, "seed": args.seed,
+                             "device": device, **vars(cfg)}, device=device, out_root=args.out)
+    print(f"==> {name}: {label} on Pong, device {device}, budget {minutes} min", flush=True)
+    train(run, cfg, steps, eval_every, seed=args.seed, device=device, label=label,
+          log_fn=lambda s: print(s, flush=True), max_minutes=minutes, eval_every_s=eval_s)
 
 
 if __name__ == "__main__":
