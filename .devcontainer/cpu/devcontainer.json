@@ -1,0 +1,12 @@
+{
+  // GitHub Codespaces with the CPU-only workshop image (smaller download, faster start).
+  "name": "MARL workshop (cpu image)",
+  "image": "ghcr.io/rajtilakls2510/marl-workshop:cpu",
+  // keep the image's own start command: virtual display (for VMAS videos) + JupyterLab on port 8888
+  "overrideCommand": false,
+  "forwardPorts": [8888],
+  "portsAttributes": {
+    "8888": { "label": "JupyterLab (token: marl)", "onAutoForward": "openBrowser" }
+  },
+  "hostRequirements": { "cpus": 2, "memory": "8gb", "storage": "32gb" }
+}

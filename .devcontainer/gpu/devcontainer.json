@@ -1,0 +1,13 @@
+{
+  // GitHub Codespaces with the full (CUDA) workshop image. Codespaces machines have no GPU, so PyTorch runs on
+  // the CPU here; the image is ~3x larger than the "cpu" one, so the first start takes longer.
+  "name": "MARL workshop (gpu image)",
+  "image": "ghcr.io/rajtilakls2510/marl-workshop:gpu",
+  // keep the image's own start command: virtual display (for VMAS videos) + JupyterLab on port 8888
+  "overrideCommand": false,
+  "forwardPorts": [8888],
+  "portsAttributes": {
+    "8888": { "label": "JupyterLab (token: marl)", "onAutoForward": "openBrowser" }
+  },
+  "hostRequirements": { "cpus": 2, "memory": "8gb", "storage": "32gb" }
+}
