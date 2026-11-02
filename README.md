@@ -29,7 +29,7 @@ Then open `notebooks/00_check_setup.ipynb` and run it. All cells green = ready. 
 
 | Path | What |
 |---|---|
-| `notebooks/` | The workshop notebooks: `00` setup check, `01` MPE tour, `02` Speaker-Listener (non-stationarity), `03` Predator-Prey (arms race), `03b` Predator-Prey (credit assignment: MADDPG vs VDN/QMIX critics), `04` Coop Navigation (MAPPO, parameter sharing, scaling), `05` SMAClite tour, `06` training on a harder domain: SMAClite (MAPPO, VDN, QMIX), `07` vectorization with VMAS (training speed on CPU vs GPU), `08` self-play on a two-player Pong |
+| `notebooks/` | The workshop notebooks: `00` setup check, `01` MPE tour, `02` Speaker-Listener (non-stationarity), `03` Predator-Prey (arms race), `04` Coop Navigation (MAPPO, parameter sharing, scaling), `05` Predator-Prey (credit assignment: MADDPG vs VDN/QMIX critics), `06` SMAClite tour, `07` training on a harder domain: SMAClite (MAPPO, VDN, QMIX), `08` vectorization with VMAS (training speed on CPU vs GPU), `09` self-play on a two-player Pong |
 | `marl/` | Small, readable PyTorch implementations of the algorithms |
 | `checkpoints/` | Trained agents and training logs for every run (snapshots across training, so the notebooks can compare early and late policies). **Shipped only inside the Docker image** (not in git); without Docker, re-create a run with `scripts/train.py` |
 | `docker/`, `scripts/` | One-command environment setup |

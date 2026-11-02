@@ -1,4 +1,4 @@
-"""Two-player Pong, K games simulated at once as torch tensors (vectorized, like VMAS in notebook 07).
+"""Two-player Pong, K games simulated at once as torch tensors (vectorized, like VMAS in notebook 08).
 
 Court: x in [-1, 1] (left player's paddle at x = -0.95, right player's at +0.95), y in [-0.5, 0.5].
 

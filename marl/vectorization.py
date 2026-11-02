@@ -1,4 +1,4 @@
-"""Vectorization: simulating many copies of a multi-agent task at once (notebook 07).
+"""Vectorization: simulating many copies of a multi-agent task at once (notebook 08).
 
 * `toy_loop` / `toy_batched` - a minimal particle world (K copies x N agents) stepped two ways, small enough
   to time live on a laptop.

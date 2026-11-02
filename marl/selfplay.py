@@ -1,4 +1,4 @@
-"""Self-play helpers for the hand-made Pong (notebook 08): policies, batched matches, evaluation, the run logger.
+"""Self-play helpers for the hand-made Pong (notebook 09): policies, batched matches, evaluation, the run logger.
 
 A *policy* is a function obs (B, 9) -> actions (B,). Trained snapshots become policies with `SnapshotPolicy`.
 """
@@ -193,7 +193,7 @@ def shot_stats(policy, opponent=follow_ball_policy, games=512, steps=1500, devic
             "hits_per_point": hits / max(points, 1)}
 
 
-# ---------------------------------------------------------------- notebook 08 helpers
+# ---------------------------------------------------------------- notebook 09 helpers
 def _table(rows, header):
     w = [max(len(str(r[i])) for r in rows + [header]) for i in range(len(header))]
     print("  ".join(str(h).ljust(w[i]) for i, h in enumerate(header)))

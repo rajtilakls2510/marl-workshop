@@ -4,7 +4,7 @@ the repo and baked into the Docker image); suite = smac / vmas / selfplay / mpe.
 
 Kept: log.csv, config.json, ckpt/ (all snapshots - the analyses compare policies across training
 time), final.pt, evolution.mp4. Not kept: per-snapshot clips in videos/ (notebooks regenerate
-them from the snapshots) - except for self-play runs, whose clips are shown in notebook 08.
+them from the snapshots) - except for self-play runs, whose clips are shown in notebook 09.
 
     python scripts/package_runs.py                 # every finished run
     python scripts/package_runs.py sl_maddpg tag_maddpg
@@ -40,7 +40,7 @@ def main():
                 shutil.copy2(src / f, dst / f)
         for f in src.glob("*.csv"):                  # log.csv + precomputed analyses (e.g. tournament.csv)
             shutil.copy2(f, dst / f.name)
-        if dst.parent.name == "selfplay":            # self-play keeps every snapshot clip (shown in notebook 08)
+        if dst.parent.name == "selfplay":            # self-play keeps every snapshot clip (shown in notebook 09)
             shutil.copytree(src / "videos", dst / "videos")
         for f in (src / "ckpt").glob("*.pt"):
             shutil.copy2(f, dst / "ckpt" / f.name)
