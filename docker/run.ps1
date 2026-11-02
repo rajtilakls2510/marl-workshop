@@ -2,6 +2,8 @@
 #   powershell -ExecutionPolicy Bypass -File docker\run.ps1
 #   ... -Cpu       never request the GPU
 #   ... -Verify    run the environment self-check instead of Jupyter
+# It uses the image you pulled: ghcr.io/.../marl-workshop:gpu if you pulled it and Docker can use your NVIDIA GPU,
+# otherwise :cpu (or :gpu on the CPU). If no image is there yet, it pulls :cpu (~2 GB).
 # NOTE: written carefully but not yet tested on a real Windows machine.
 param([switch]$Cpu, [switch]$Verify)
 $ErrorActionPreference = "Stop"
@@ -10,11 +12,12 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot  = Split-Path -Parent $ScriptDir
 $GithubUser = if ($env:GITHUB_USER) { $env:GITHUB_USER } else { "rajtilakls2510" }  # keep in sync with config.sh
 $LocalImage = "marl-workshop"
-$RegistryImage = "ghcr.io/$GithubUser/marl-workshop"
+$RegistryCpu = "ghcr.io/$GithubUser/marl-workshop:cpu"
+$RegistryGpu = "ghcr.io/$GithubUser/marl-workshop:gpu"
 $Port = if ($env:JUPYTER_PORT) { $env:JUPYTER_PORT } else { "8888" }
 
 if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
-    Write-Host "ERROR: Docker is not installed. See docs\INSTALL_DOCKER.md, or use the Docker-free route: scripts\setup_uv.bat" -ForegroundColor Red; exit 1
+    Write-Host "ERROR: Docker is not installed. See docs\INSTALL_DOCKER.md, or use the Codespaces route in your browser (docs\INSTALL_CODESPACES.md)" -ForegroundColor Red; exit 1
 }
 docker info *> $null
 if ($LASTEXITCODE -ne 0) {
@@ -29,23 +32,36 @@ if (docker ps -q -f "name=^marl-workshop$") {
 }
 docker rm marl-workshop *> $null
 
-$Image = $env:IMAGE
-if (-not $Image) {
-    docker image inspect "${LocalImage}:latest" *> $null
-    if ($LASTEXITCODE -eq 0) { $Image = "${LocalImage}:latest" } else { $Image = "${RegistryImage}:latest" }
-}
-docker image inspect $Image *> $null
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "==> Image $Image not found locally: pulling (several GB, this can take a while)"
-    docker pull $Image
-    if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: pull failed. Ask the instructor for the USB/LAN copy and use docker\load.ps1" -ForegroundColor Red; exit 1 }
+function Have($img) { docker image inspect $img *> $null; return ($LASTEXITCODE -eq 0) }
+# Can Docker hand the NVIDIA GPU to a container of this image? (cheap probe: start and stop a no-op container)
+function GpuOk($img) {
+    if ($Cpu -or -not (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) { return $false }
+    docker run --rm --gpus all --entrypoint true $img *> $null
+    return ($LASTEXITCODE -eq 0)
 }
 
+# Pick the image: $env:IMAGE > pulled :gpu (if the GPU works) > pulled :cpu > pulled :gpu (on CPU) > local build > pull :cpu
+$Image = $env:IMAGE
+if (-not $Image) {
+    if ((Have $RegistryGpu) -and (GpuOk $RegistryGpu)) { $Image = $RegistryGpu }
+    elseif (Have $RegistryCpu) { $Image = $RegistryCpu }
+    elseif (Have $RegistryGpu) { $Image = $RegistryGpu }
+    elseif (Have "${LocalImage}:latest") { $Image = "${LocalImage}:latest" }
+    elseif (Have "${LocalImage}:cpu") { $Image = "${LocalImage}:cpu" }
+    else { $Image = $RegistryCpu }
+}
+if (-not (Have $Image)) {
+    Write-Host "==> Image $Image not found locally: pulling it (about 2 GB for :cpu, 8 GB for :gpu; this can take a while)"
+    docker pull $Image
+    if ($LASTEXITCODE -ne 0) { Write-Host "ERROR: pull failed. Check your internet connection and docs\TROUBLESHOOTING.md." -ForegroundColor Red; exit 1 }
+}
+Write-Host "==> Using image $Image"
+
+# GPU only for a CUDA image and only if the machine really supports it.
 $GpuArgs = @()
-if (-not $Cpu -and (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) {
-    docker run --rm --gpus all --entrypoint true $Image *> $null
-    if ($LASTEXITCODE -eq 0) { $GpuArgs = @("--gpus", "all"); Write-Host "==> NVIDIA GPU available to Docker: enabling --gpus all" }
-    else { Write-Host "==> NVIDIA GPU found but Docker can't use it: running on CPU" }
+if (-not $Image.EndsWith(":cpu")) {
+    if (GpuOk $Image) { $GpuArgs = @("--gpus", "all"); Write-Host "==> NVIDIA GPU available to Docker: enabling --gpus all" }
+    elseif (-not $Cpu -and (Get-Command nvidia-smi -ErrorAction SilentlyContinue)) { Write-Host "==> NVIDIA GPU found but Docker can't use it: running on CPU" }
 }
 
 $Cmd = @()

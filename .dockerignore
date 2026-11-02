@@ -2,9 +2,7 @@
 .venv
 **/__pycache__
 **/.ipynb_checkpoints
-wheelhouse
 *.tar
 *.tar.gz
-facilitator/kit
 docker/build.log
 runs/

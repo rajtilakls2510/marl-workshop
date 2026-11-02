@@ -1,28 +1,29 @@
 #!/usr/bin/env bash
-# Maintainer: publish the image to GHCR (linux/amd64 only; Apple Silicon Macs run it under emulation).
+# Maintainer: publish the two locally built images to GHCR (linux/amd64).
+#   marl-workshop:latest (CUDA PyTorch, ./docker/build.sh)          -> ghcr.io/<user>/marl-workshop:gpu
+#   marl-workshop:cpu    (CPU PyTorch, FLAVOR=cpu ./docker/build.sh cpu) -> ghcr.io/<user>/marl-workshop:cpu
 #
 # One-time login:  echo $GITHUB_PAT | docker login ghcr.io -u <GITHUB_USER> --password-stdin
-#   (PAT needs the write:packages scope). Afterwards make the package PUBLIC in the GitHub UI
-#   (Packages -> marl-workshop -> Package settings -> Change visibility).
+#   (classic PAT with the write:packages scope). Afterwards make the package PUBLIC in the GitHub UI
+#   (Packages -> marl-workshop -> Package settings -> Change visibility): Codespaces and attendees pull anonymously.
 #
-# Usage: GITHUB_USER=yourname ./docker/push.sh [tag]
+# Usage: ./docker/push.sh            push both
+#        ./docker/push.sh cpu        push only one (cpu | gpu)
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 source "$SCRIPT_DIR/config.sh"
 
-if [ -z "$GITHUB_USER" ]; then
-  echo "ERROR: GITHUB_USER is empty (set it in docker/config.sh)." >&2; exit 1
-fi
-TAG="${1:-latest}"
-PLATFORMS="${PLATFORMS:-linux/amd64}"
-
-docker buildx inspect marl-builder >/dev/null 2>&1 || docker buildx create --name marl-builder --use
-docker buildx use marl-builder
-echo "==> Building + pushing ${REGISTRY_IMAGE}:${TAG} for ${PLATFORMS}"
-docker buildx build \
-  -f "$SCRIPT_DIR/Dockerfile" \
-  --platform "$PLATFORMS" \
-  -t "${REGISTRY_IMAGE}:${TAG}" \
-  --push \
-  "$REPO_ROOT"
+push() {   # push <local image> <registry image>
+  if ! docker image inspect "$1" >/dev/null 2>&1; then
+    echo "ERROR: $1 not found - build it first (see the header of this script)." >&2; exit 1
+  fi
+  docker tag "$1" "$2"
+  echo "==> Pushing $2"
+  docker push "$2"
+}
+case "${1:-both}" in
+  cpu)  push "${LOCAL_IMAGE}:cpu" "$REGISTRY_CPU" ;;
+  gpu)  push "${LOCAL_IMAGE}:latest" "$REGISTRY_GPU" ;;
+  both) push "${LOCAL_IMAGE}:cpu" "$REGISTRY_CPU"; push "${LOCAL_IMAGE}:latest" "$REGISTRY_GPU" ;;
+  *) echo "Usage: $0 [cpu|gpu|both]" >&2; exit 1 ;;
+esac

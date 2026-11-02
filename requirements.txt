@@ -3,7 +3,7 @@
 # Install with uv (picks the right PyTorch build for your machine):
 #     uv pip install --torch-backend auto -r requirements.txt     # NVIDIA GPU -> CUDA wheel, else CPU
 #     uv pip install --torch-backend cpu  -r requirements.txt     # force the small CPU-only wheel
-# Or just run scripts/setup_uv.sh (Linux/macOS) / scripts\setup_uv.bat (Windows).
+# (The workshop image is built this way: docker/Dockerfile.)
 #
 # Direct dependencies only; everything else is resolved by uv/pip.
 
@@ -20,7 +20,7 @@ vmas==1.5.2                  # Vectorized Multi-Agent Simulator
 smaclite @ https://github.com/uoe-agents/smaclite/archive/0d6abbea1334011984ae4704a0ef7a33c36057d6.zip
 pygame==2.6.1                # needed by smaclite
 pygame-ce==2.5.8             # needed by mpe2. Both install the same `pygame` module: pygame-ce must be
-                             # installed LAST (the setup scripts and Dockerfile re-install it), otherwise
+                             # installed LAST (the Dockerfile re-installs it), otherwise
                              # `import pygame` fails with "pygame.imageext has no attribute _load_sized_svg"
 
 # --- tooling ----------------------------------------------------------------

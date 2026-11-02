@@ -1,0 +1,20 @@
+{
+  // GitHub Codespaces: the workshop in your browser, nothing to install.
+  // Runs the CPU-only workshop image (Codespaces machines have no GPU); all trained agents are inside.
+  "name": "MARL workshop",
+  "image": "ghcr.io/rajtilakls2510/marl-workshop:cpu",
+  // keep the image's own start command: virtual display (for VMAS videos) + JupyterLab on port 8888
+  "overrideCommand": false,
+  "forwardPorts": [8888],
+  "portsAttributes": {
+    "8888": { "label": "JupyterLab (token: marl)", "onAutoForward": "notify" }
+  },
+  "hostRequirements": { "cpus": 2, "memory": "8gb", "storage": "32gb" },
+  "customizations": {
+    "vscode": {
+      // notebooks open directly in VS Code; their kernel is the image's Python environment (/opt/venv)
+      "extensions": ["ms-python.python", "ms-toolsai.jupyter"],
+      "settings": { "python.defaultInterpreterPath": "/opt/venv/bin/python" }
+    }
+  }
+}
